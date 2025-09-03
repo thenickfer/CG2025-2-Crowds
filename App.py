@@ -49,6 +49,7 @@ class Pessoa():
         self.h = h                 # Altura
         self.c = (0, 1, 1)         # Cor inicial 
         self.list = []
+        self.visible = False
 
 # Lista de quadrados (inicia com um)
 pessoas = []
@@ -114,8 +115,9 @@ def Desenha():
 
     # Desenha todos os quadrados
     for pessoa in pessoas:
-        glColor3f(*pessoa.c)
-        desenhaQuadrado(pessoa.pos.x, pessoa.pos.y, pessoa.h, pessoa.w)
+        if pessoa.visible:
+            glColor3f(*pessoa.c)
+            desenhaQuadrado(pessoa.pos.x, pessoa.pos.y, pessoa.h, pessoa.w)
 
     # Desenha os eixos
     desenhaEixos()
@@ -198,13 +200,15 @@ def update():
         frame+=1
         for pessoa in pessoas:
             if not pessoa.list:
+                pessoa.visible = False
                 continue
             fnumber = pessoa.list[0].f
             if(frame == fnumber):
+                pessoa.visible = True
                 newPos = pessoa.list.pop(0)
-                print(newPos)
                 pessoa.pos.x = newPos.x
                 pessoa.pos.y = newPos.y
+                
         glutPostRedisplay()
 
 # Função principal
