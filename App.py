@@ -1,3 +1,4 @@
+import colorsys
 import math
 import time
 
@@ -5,30 +6,10 @@ from OpenGL.GLUT import *
 from OpenGL.GLU import *
 from OpenGL.GL import *
 
+from Quadtree import Quadtree
+from models import Pessoa, Ponto
 # Classe que representa um ponto 2D com operações básicas
-class Ponto:
-    def __init__(self, x: float, y: float):
-        self.x = x
-        self.y = y
 
-    def print(self) -> None:
-        print("Ponto (", self.x, ",", self.y, ")")
-
-    def set(self, x: float, y: float) -> None:
-        self.x = x
-        self.y = y
-
-    # Soma de dois pontos
-    def __add__(self, other):
-        return Ponto(self.x + other.x, self.y + other.y)
-
-    # Subtração entre pontos
-    def __sub__(self, other):
-        return Ponto(self.x - other.x, self.y - other.y)
-
-    # Multiplicação por escalar
-    def __mul__(self, escalar: float):
-        return Ponto(self.x * escalar, self.y * escalar)
     
 class Frame:
     def __init__(self, x: float, y: float, f: int):
@@ -42,14 +23,6 @@ class Frame:
         self.f = f
 
 # Classe que representa um quadrado desenhável
-class Pessoa():
-    def __init__(self, w, h):
-        self.pos = Ponto(0, 0)     # Posição do canto inferior esquerdo
-        self.w = w                 # Largura
-        self.h = h                 # Altura
-        self.c = (0, 1, 1)         # Cor inicial 
-        self.list = []
-        self.visible = False
 
 # Lista de quadrados (inicia com um)
 pessoas = []
@@ -158,8 +131,9 @@ def Inicializa():
 
     
 
-    with open("Paths_D.txt") as file:
-        divisor = float(file.readline().strip().replace('[', '').replace(']', '')) * 10
+    with open("Paths_JP.txt") as file:
+        firstLine = file.readline().strip().replace('[', '').replace(']', '').split(',')
+        divisor = [float(firstLine[0]), float(firstLine[1])]
         for line in file:
             pes = Pessoa(0.01, 0.01)
             line = line.replace('(', ' ').replace(')', ' ')
@@ -171,7 +145,7 @@ def Inicializa():
             parts.pop(0)
             for coord in parts: 
                 coord = coord.split(',')
-                pes.list.append(Frame(float(coord[0])/divisor, float(coord[1])/divisor, float(coord[2])))
+                pes.list.append(Frame(float(coord[0])/divisor[0], float(coord[1])/divisor[1], float(coord[2])))
             pessoas.append(pes)
 
             
@@ -188,6 +162,11 @@ def Inicializa():
 
 
 # Função de atualização para animação
+
+quadTree =  Quadtree(1, 1, Ponto(0, 0), 10)
+
+colors = [(0, 1, 1), (0, 1, 0), (1, 1, 0), (1, 0, 0)]
+
 def update():
     global pessoas, right, left, soma_dt, tempo_antes, frame
 
@@ -198,6 +177,9 @@ def update():
     if soma_dt > 1.0 / 30:  # Atualiza ~30 vezes por segundo
         soma_dt = 0
         frame+=1
+        quadTree.clear()
+        for pessoa in pessoas:
+            quadTree.insert(pessoa)
         for pessoa in pessoas:
             if not pessoa.list:
                 pessoa.visible = False
@@ -207,8 +189,17 @@ def update():
                 pessoa.visible = True
                 newPos = pessoa.list.pop(0)
                 pessoa.pos.x = newPos.x
-                pessoa.pos.y = newPos.y
-                
+                pessoa.pos.y = newPos.y  
+                neighbors = quadTree.findBetween(pessoa.pos - Ponto(0.1, 0.1), pessoa.pos + Ponto(0.1, 0.1))
+        
+                closestDist = 1
+
+                for neighbor in neighbors:
+                    newDist = math.sqrt((neighbor.pos.x - pessoa.pos.x) ** 2 + (neighbor.pos.y - pessoa.pos.y) ** 2)
+                    closestDist = min(closestDist, newDist)
+
+                pessoa.c = colors[round(closestDist/0.02)%len(colors)]
+
         glutPostRedisplay()
 
 # Função principal
