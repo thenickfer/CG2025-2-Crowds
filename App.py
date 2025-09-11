@@ -26,6 +26,7 @@ class Frame:
 
 # Lista de quadrados (inicia com um)
 pessoas = []
+avatar = Pessoa(0.05, 0.05)
 num_quadrado = 0  # Índice do quadrado atual
 
 tempo_antes = time.time()
@@ -92,6 +93,9 @@ def Desenha():
             glColor3f(*pessoa.c)
             desenhaQuadrado(pessoa.pos.x, pessoa.pos.y, pessoa.h, pessoa.w)
 
+    glColor3f(*avatar.c)
+    desenhaQuadrado(avatar.pos.x, avatar.pos.y, avatar.h, avatar.w)
+
     # Desenha os eixos
     desenhaEixos()
 
@@ -121,12 +125,23 @@ def Teclado(key: chr, x: int, y: int):
 # Função para teclas especiais (setas) — move o quadrado atual
 def TeclasEspeciais(key: int, x: int, y: int):
 
+    if key == GLUT_KEY_LEFT:
+        avatar.pos.x -= 0.01
+    if key == GLUT_KEY_RIGHT:
+        avatar.pos.x += 0.01
+    if key == GLUT_KEY_UP:
+        avatar.pos.y += 0.01
+    if key == GLUT_KEY_DOWN:
+        avatar.pos.y -= 0.01  
 
     glutPostRedisplay()
 
 # Inicializa as configurações do sistema de coordenadas
+
+pessoasOrig = []
+
 def Inicializa():
-    global left, right, top, bottom, frame
+    global left, right, top, bottom, frame, pessoasOrig
     frame = 0
 
     
@@ -148,8 +163,7 @@ def Inicializa():
                 pes.list.append(Frame(float(coord[0])/divisor[0], float(coord[1])/divisor[1], float(coord[2])))
             pessoas.append(pes)
 
-            
-
+    pessoasOrig = pessoas.copy()
 
 
     glMatrixMode(GL_PROJECTION)
@@ -161,14 +175,33 @@ def Inicializa():
     glMatrixMode(GL_MODELVIEW)
 
 
+def restart():
+    global pessoas, frame
+    pessoas = []
+    frame = 0
+    with open("Paths_JP.txt") as file:
+        firstLine = file.readline().strip().replace('[', '').replace(']', '').split(',')
+        divisor = [float(firstLine[0]), float(firstLine[1])]
+        for line in file:
+            pes = Pessoa(0.01, 0.01)
+            line = line.replace('(', ' ').replace(')', ' ')
+            parts = line.split()
+            parts.pop(0)
+            parts.pop(0)
+            for coord in parts: 
+                coord = coord.split(',')
+                pes.list.append(Frame(float(coord[0])/divisor[0], float(coord[1])/divisor[1], float(coord[2])))
+            pessoas.append(pes)
+
+
 # Função de atualização para animação
 
 quadTree =  Quadtree(1, 1, Ponto(0, 0), 10)
 
-colors = [(0, 1, 1), (0, 1, 0), (1, 1, 0), (1, 0, 0)]
+colors = [(1, 0, 0), (1, 1, 0), (0, 1, 0), (0, 1, 1)]
 
 def update():
-    global pessoas, right, left, soma_dt, tempo_antes, frame
+    global pessoas, right, left, soma_dt, tempo_antes, frame, avatar
 
     tempo_agora = time.time()
     delta_time = tempo_agora - tempo_antes
@@ -191,14 +224,34 @@ def update():
                 pessoa.pos.x = newPos.x
                 pessoa.pos.y = newPos.y  
                 neighbors = quadTree.findBetween(pessoa.pos - Ponto(0.1, 0.1), pessoa.pos + Ponto(0.1, 0.1))
-        
+
                 closestDist = 1
+                maxDist = 0.14142135623730950488016887242097
+                if neighbors:
+                    for neighbor in neighbors:
+                        newDist = math.sqrt((neighbor.pos.x - pessoa.pos.x) ** 2 + (neighbor.pos.y - pessoa.pos.y) ** 2)
+                        closestDist = min(closestDist, newDist)
 
-                for neighbor in neighbors:
-                    newDist = math.sqrt((neighbor.pos.x - pessoa.pos.x) ** 2 + (neighbor.pos.y - pessoa.pos.y) ** 2)
-                    closestDist = min(closestDist, newDist)
+                    pessoa.c = colors[round(closestDist/maxDist)%(len(colors))]
+                else:
+                    pessoa.c = colors[len(colors)-1]
+        
+        neighborsAvatar = quadTree.findBetween(avatar.pos - Ponto(0.2, 0.2), avatar.pos + Ponto(0.2, 0.2))
+        
+        closestDistAv = 1
 
-                pessoa.c = colors[round(closestDist/0.02)%len(colors)]
+        for neighbor in neighborsAvatar:
+            newDist = math.sqrt((neighbor.pos.x - avatar.pos.x) ** 2 + (neighbor.pos.y - avatar.pos.y) ** 2)
+            closestDistAv = min(closestDistAv, newDist)
+
+        maxDistAv = 0.28284271247461900976033774484194
+
+        avatar.c = colors[round(closestDistAv/maxDistAv)%(len(colors)-1)]
+
+
+        if (not any(pessoa.visible for pessoa in pessoas)) and frame > 10:
+            print("A")
+            restart()
 
         glutPostRedisplay()
 
