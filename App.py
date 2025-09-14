@@ -28,6 +28,7 @@ class Frame:
 pessoas = []
 avatar = Pessoa(0.05, 0.05)
 num_quadrado = 0  # Índice do quadrado atual
+country = "JP"
 
 tempo_antes = time.time()
 soma_dt = 0
@@ -141,12 +142,12 @@ def TeclasEspeciais(key: int, x: int, y: int):
 pessoasOrig = []
 
 def Inicializa():
-    global left, right, top, bottom, frame, pessoasOrig
+    global left, right, top, bottom, frame, pessoasOrig, contry
     frame = 0
 
     
 
-    with open("Paths_JP.txt") as file:
+    with open(f'Paths_{country}.txt') as file:
         firstLine = file.readline().strip().replace('[', '').replace(']', '').split(',')
         divisor = [float(firstLine[0]), float(firstLine[1])]
         for line in file:
@@ -176,10 +177,10 @@ def Inicializa():
 
 
 def restart():
-    global pessoas, frame
+    global pessoas, frame, country
     pessoas = []
     frame = 0
-    with open("Paths_JP.txt") as file:
+    with open(f'Paths_{country}.txt') as file:
         firstLine = file.readline().strip().replace('[', '').replace(']', '').split(',')
         divisor = [float(firstLine[0]), float(firstLine[1])]
         for line in file:
@@ -212,7 +213,8 @@ def update():
         frame+=1
         quadTree.clear()
         for pessoa in pessoas:
-            quadTree.insert(pessoa)
+            if(pessoa.visible):
+                quadTree.insert(pessoa)
         for pessoa in pessoas:
             if not pessoa.list:
                 pessoa.visible = False
@@ -229,12 +231,19 @@ def update():
                 maxDist = 0.14142135623730950488016887242097
                 if neighbors:
                     for neighbor in neighbors:
+                        if neighbor is pessoa:
+                            continue
                         newDist = math.sqrt((neighbor.pos.x - pessoa.pos.x) ** 2 + (neighbor.pos.y - pessoa.pos.y) ** 2)
                         closestDist = min(closestDist, newDist)
-
-                    pessoa.c = colors[round(closestDist/maxDist)%(len(colors))]
+                    result = closestDist/maxDist
+                    t = min(result, 1.0)
+                    r = 1.0 - t
+                    g = 0
+                    b = t
+                    pessoa.c = (r, g, b) #no algoritmo antigo: colors[round(result%(len(colors)-1)]
                 else:
-                    pessoa.c = colors[len(colors)-1]
+                    pessoa.c = (0, 1, 1)
+                
         
         neighborsAvatar = quadTree.findBetween(avatar.pos - Ponto(0.2, 0.2), avatar.pos + Ponto(0.2, 0.2))
         
@@ -244,13 +253,17 @@ def update():
             newDist = math.sqrt((neighbor.pos.x - avatar.pos.x) ** 2 + (neighbor.pos.y - avatar.pos.y) ** 2)
             closestDistAv = min(closestDistAv, newDist)
 
-        maxDistAv = 0.28284271247461900976033774484194
+        maxDistAv = 0.28284271247461900976033774484194 
 
-        avatar.c = colors[round(closestDistAv/maxDistAv)%(len(colors)-1)]
+        t = min(closestDistAv/maxDistAv, 1.0)
+        r = 1.0-t
+        g = 0.5
+        b = t
+
+        avatar.c = (r, g, b) #no algoritmo antigo: colors[round(closestDistAv/maxDistAv)%(len(colors)-1)]
 
 
         if (not any(pessoa.visible for pessoa in pessoas)) and frame > 10:
-            print("A")
             restart()
 
         glutPostRedisplay()
